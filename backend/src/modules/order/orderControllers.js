@@ -1,23 +1,13 @@
+
 import prisma from "../../config/prisma.js";
-// Remove: import redis from "../../config/redis.js";
+
 
 export const getMyOrders = async (req, res) => {
   try {
-    // Remove Redis cache check
-    // const cacheKey = `my-orders:${req.user.id}`;
-    // const cachedOrders = await redis.get(cacheKey);
-    // if (cachedOrders) {
-    //   return res.status(200).json({
-    //     success: true,
-    //     source: "cache",
-    //     orders: JSON.parse(cachedOrders)
-    //   });
-    // }
-
     const buyer = await prisma.buyer.findUnique({
       where: {
-        userId: req.user.id
-      }
+        userId: req.user.id,
+      },
     });
 
     if (!buyer) {
@@ -31,124 +21,177 @@ export const getMyOrders = async (req, res) => {
       where: {
         buyerId: buyer.id,
       },
+
       include: {
         crop: true,
+
         farmer: {
-          include: {
+          select: {
+            id: true,
+            phone: true,
+            village: true,
+            district: true,
+            state: true,
+            profileImage: true,
+
             user: {
               select: {
+                id: true,
                 name: true,
                 email: true,
-                phone: true,
-              }
-            }
-          }
+              },
+            },
+          },
         },
+
         delivery: {
           include: {
             driver: {
-              include: {
+              select: {
+                id: true,
+                phone: true,
+                vehicleNo: true,
+                vehicleType: true,
+                isAvailable: true,
+
                 user: {
                   select: {
+                    id: true,
                     name: true,
                     email: true,
-                  }
-                }
-              }
-            }
-          }
-        }
+                  },
+                },
+              },
+            },
+          },
+        },
       },
-      orderBy: {
-        createdAt: "desc"
-      }
-    });
 
-    // Remove Redis caching
-    // await redis.setEx(cacheKey, 300, JSON.stringify(orders))
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
 
     return res.status(200).json({
       success: true,
       totalOrders: orders.length,
-      orders
+      orders,
     });
-
   } catch (error) {
+    console.error("Get My Orders Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
-}
+};
+
+
+// ======================================================
+// GET ORDER DETAILS
+// ======================================================
 
 export const getOrderDetails = async (req, res) => {
   try {
     const { orderId } = req.params;
 
-    // Remove Redis cache check
-    // const cacheKey = `order:${orderId}`;
-    // const cachedOrder = await redis.get(cacheKey);
-    // if (cachedOrder) {
-    //   return res.status(200).json({
-    //     success: true,
-    //     source: "cache",
-    //     order: JSON.parse(cachedOrder),
-    //   });
-    // }
+    const orderIdInt = parseInt(orderId);
 
-    // Verify user has access to this order
+    if (isNaN(orderIdInt)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID",
+      });
+    }
+
+    // Get current user with profiles
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+      where: {
+        id: req.user.id,
+      },
       include: {
         buyer: true,
         farmer: true,
-      }
+        driver: true,
+      },
     });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
 
     const order = await prisma.order.findUnique({
       where: {
-        id: parseInt(orderId),
+        id: orderIdInt,
       },
+
       include: {
         crop: true,
         bid: true,
+
         buyer: {
-          include: {
+          select: {
+            id: true,
+            phone: true,
+            village: true,
+            district: true,
+            state: true,
+            profileImage: true,
+
             user: {
               select: {
+                id: true,
                 name: true,
                 email: true,
-                phone: true,
               },
             },
           },
         },
+
         farmer: {
-          include: {
+          select: {
+            id: true,
+            phone: true,
+            village: true,
+            district: true,
+            state: true,
+            profileImage: true,
+
             user: {
               select: {
+                id: true,
                 name: true,
                 email: true,
-                phone: true,
               },
             },
           },
         },
+
         delivery: {
           include: {
             driver: {
-              include: {
+              select: {
+                id: true,
+                phone: true,
+                vehicleNo: true,
+                vehicleType: true,
+                isAvailable: true,
+
                 user: {
                   select: {
+                    id: true,
                     name: true,
                     email: true,
-                    phone: true,
-                  }
-                }
-              }
-            }
-          }
-        }
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -159,10 +202,16 @@ export const getOrderDetails = async (req, res) => {
       });
     }
 
-    // Check if user is authorized to view this order
-    const isBuyer = user.buyer && user.buyer.id === order.buyerId;
-    const isFarmer = user.farmer && user.farmer.id === order.farmerId;
-    const isAdmin = req.user.role === "ADMIN";
+    // Check authorization
+    const isBuyer =
+      user.buyer && user.buyer.id === order.buyerId;
+
+    const isFarmer =
+      user.farmer && user.farmer.id === order.farmerId;
+
+    // Your current Role enum doesn't contain ADMIN.
+    // If you add ADMIN later, this can be enabled.
+    const isAdmin = false;
 
     if (!isBuyer && !isFarmer && !isAdmin) {
       return res.status(403).json({
@@ -171,19 +220,13 @@ export const getOrderDetails = async (req, res) => {
       });
     }
 
-    // Remove Redis caching
-    // await redis.setEx(
-    //   cacheKey,
-    //   300,
-    //   JSON.stringify(order)
-    // );
-
     return res.status(200).json({
       success: true,
       order,
     });
-
   } catch (error) {
+    console.error("Get Order Details Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -191,15 +234,29 @@ export const getOrderDetails = async (req, res) => {
   }
 };
 
+
+// ======================================================
+// CANCEL ORDER
+// ======================================================
+
 export const cancelOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
 
-    // Find the order with relationships
+    const orderIdInt = parseInt(orderId);
+
+    if (isNaN(orderIdInt)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID",
+      });
+    }
+
     const order = await prisma.order.findUnique({
       where: {
-        id: parseInt(orderId),
+        id: orderIdInt,
       },
+
       include: {
         buyer: true,
         farmer: true,
@@ -248,7 +305,7 @@ export const cancelOrder = async (req, res) => {
       });
     }
 
-    // Check if order can be cancelled
+    // Orders that cannot be cancelled
     const nonCancellableStatuses = [
       "PICKED_UP",
       "IN_TRANSIT",
@@ -263,23 +320,24 @@ export const cancelOrder = async (req, res) => {
       });
     }
 
-    // If there's a delivery, update it too
+    // Update delivery and free driver
     if (order.delivery) {
       await prisma.delivery.update({
         where: {
           id: order.delivery.id,
         },
+
         data: {
           status: "CANCELLED",
         },
       });
 
-      // Free up the driver
       if (order.delivery.driverId) {
         await prisma.driver.update({
           where: {
             id: order.delivery.driverId,
           },
+
           data: {
             isAvailable: true,
           },
@@ -287,21 +345,16 @@ export const cancelOrder = async (req, res) => {
       }
     }
 
-    // Cancel the order
+    // Cancel order
     const updatedOrder = await prisma.order.update({
       where: {
         id: order.id,
       },
+
       data: {
         status: "CANCELLED",
       },
     });
-
-    // Remove Redis cache invalidation
-    // await redis.del(`order:${order.id}`);
-    // if (order.buyer) {
-    //   await redis.del(`my-orders:${order.buyer.userId}`);
-    // }
 
     return res.status(200).json({
       success: true,
@@ -309,12 +362,19 @@ export const cancelOrder = async (req, res) => {
       order: updatedOrder,
     });
   } catch (error) {
+    console.error("Cancel Order Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
+
+
+// ======================================================
+// GET FARMER ORDERS
+// ======================================================
 
 export const getFarmerOrders = async (req, res) => {
   try {
@@ -327,16 +387,24 @@ export const getFarmerOrders = async (req, res) => {
     if (!farmer) {
       return res.status(404).json({
         success: false,
-        message: "Farmer profile not found"
+        message: "Farmer profile not found",
       });
     }
 
-    // Add pagination support
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    // Pagination
+    const page = Math.max(
+      parseInt(req.query.page) || 1,
+      1
+    );
+
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit) || 10, 1),
+      100
+    );
+
     const skip = (page - 1) * limit;
 
-    // Add status filter
+    // Status filter
     const statusFilter = req.query.status;
 
     const whereClause = {
@@ -350,6 +418,7 @@ export const getFarmerOrders = async (req, res) => {
     const [orders, totalOrders] = await Promise.all([
       prisma.order.findMany({
         where: whereClause,
+
         include: {
           crop: {
             select: {
@@ -358,60 +427,83 @@ export const getFarmerOrders = async (req, res) => {
               category: true,
               images: true,
               pricePerUnit: true,
-            }
+            },
           },
+
           buyer: {
-            include: {
+            select: {
+              id: true,
+              phone: true,
+              village: true,
+              district: true,
+              state: true,
+              profileImage: true,
+
               user: {
                 select: {
+                  id: true,
                   name: true,
                   email: true,
-                  phone: true,
-                }
-              }
-            }
+                },
+              },
+            },
           },
+
           delivery: {
             include: {
               driver: {
-                include: {
+                select: {
+                  id: true,
+                  phone: true,
+                  vehicleNo: true,
+                  vehicleType: true,
+                  isAvailable: true,
+
                   user: {
                     select: {
+                      id: true,
                       name: true,
                       email: true,
-                      phone: true,
-                    }
-                  }
-                }
-              }
-            }
-          }
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
+
         orderBy: {
-          createdAt: "desc"
+          createdAt: "desc",
         },
+
         skip,
         take: limit,
       }),
+
       prisma.order.count({
         where: whereClause,
-      })
+      }),
     ]);
+
+    const totalPages = Math.ceil(totalOrders / limit);
 
     return res.status(200).json({
       success: true,
       totalOrders,
+
       pagination: {
         currentPage: page,
-        totalPages: Math.ceil(totalOrders / limit),
+        totalPages,
         limit,
-        hasNextPage: page < Math.ceil(totalOrders / limit),
+        hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
       },
+
       orders,
     });
-
   } catch (error) {
+    console.error("Get Farmer Orders Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -419,64 +511,86 @@ export const getFarmerOrders = async (req, res) => {
   }
 };
 
-// Additional utility function: Get order status counts for dashboard
+
+// ======================================================
+// GET ORDER STATUS COUNTS
+// ======================================================
+
 export const getOrderStatusCounts = async (req, res) => {
   try {
-    let userId = req.user.id;
-    let role = req.user.role;
+    const userId = req.user.id;
+    const role = req.user.role;
 
     let whereClause = {};
 
     if (role === "BUYER") {
       const buyer = await prisma.buyer.findUnique({
-        where: { userId }
+        where: {
+          userId,
+        },
       });
+
       if (!buyer) {
         return res.status(404).json({
           success: false,
-          message: "Buyer profile not found"
+          message: "Buyer profile not found",
         });
       }
-      whereClause = { buyerId: buyer.id };
+
+      whereClause = {
+        buyerId: buyer.id,
+      };
     } else if (role === "FARMER") {
       const farmer = await prisma.farmer.findUnique({
-        where: { userId }
+        where: {
+          userId,
+        },
       });
+
       if (!farmer) {
         return res.status(404).json({
           success: false,
-          message: "Farmer profile not found"
+          message: "Farmer profile not found",
         });
       }
-      whereClause = { farmerId: farmer.id };
+
+      whereClause = {
+        farmerId: farmer.id,
+      };
     } else {
       return res.status(403).json({
         success: false,
-        message: "Unauthorized to view order statistics"
+        message: "Unauthorized to view order statistics",
       });
     }
 
     const statusCounts = await prisma.order.groupBy({
-      by: ['status'],
+      by: ["status"],
+
       where: whereClause,
+
       _count: {
         status: true,
       },
     });
 
-    // Format the response
     const counts = {};
-    statusCounts.forEach(item => {
+
+    statusCounts.forEach((item) => {
       counts[item.status] = item._count.status;
     });
 
     return res.status(200).json({
       success: true,
       counts,
-      total: Object.values(counts).reduce((sum, count) => sum + count, 0),
+      total: Object.values(counts).reduce(
+        (sum, count) => sum + count,
+        0
+      ),
     });
-
   } catch (error) {
+    console.error("Get Order Status Counts Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -484,13 +598,17 @@ export const getOrderStatusCounts = async (req, res) => {
   }
 };
 
-// Additional utility function: Get order summary
+
+// ======================================================
+// GET ORDER SUMMARY - BUYER
+// ======================================================
+
 export const getOrderSummary = async (req, res) => {
   try {
     const buyer = await prisma.buyer.findUnique({
       where: {
-        userId: req.user.id
-      }
+        userId: req.user.id,
+      },
     });
 
     if (!buyer) {
@@ -500,53 +618,79 @@ export const getOrderSummary = async (req, res) => {
       });
     }
 
-    const [totalOrders, totalSpent, averageOrderValue, recentOrders] = await Promise.all([
+    const [
+      totalOrders,
+      totalSpent,
+      averageOrderValue,
+      recentOrders,
+    ] = await Promise.all([
       prisma.order.count({
-        where: { buyerId: buyer.id }
+        where: {
+          buyerId: buyer.id,
+        },
       }),
+
       prisma.order.aggregate({
         where: {
           buyerId: buyer.id,
-          status: "DELIVERED"
+          status: "DELIVERED",
         },
+
         _sum: {
-          totalAmount: true
-        }
+          totalAmount: true,
+        },
       }),
+
       prisma.order.aggregate({
-        where: { buyerId: buyer.id },
+        where: {
+          buyerId: buyer.id,
+        },
+
         _avg: {
-          totalAmount: true
-        }
+          totalAmount: true,
+        },
       }),
+
       prisma.order.findMany({
-        where: { buyerId: buyer.id },
+        where: {
+          buyerId: buyer.id,
+        },
+
         include: {
           crop: {
             select: {
               title: true,
               category: true,
-            }
-          }
+            },
+          },
         },
+
         orderBy: {
-          createdAt: "desc"
+          createdAt: "desc",
         },
-        take: 5
-      })
+
+        take: 5,
+      }),
     ]);
 
     return res.status(200).json({
       success: true,
+
       summary: {
         totalOrders,
-        totalSpent: totalSpent._sum.totalAmount || 0,
-        averageOrderValue: averageOrderValue._avg.totalAmount || 0,
-        recentOrders,
-      }
-    });
 
+        totalSpent:
+          totalSpent._sum.totalAmount || 0,
+
+        averageOrderValue:
+          averageOrderValue._avg.totalAmount || 0,
+
+        recentOrders,
+      },
+    });
   } catch (error) {
+    console.error("Get Order Summary Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,

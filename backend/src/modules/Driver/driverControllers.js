@@ -1,23 +1,53 @@
+
 import prisma from "../../config/prisma.js";
-// Remove: import redis from "../../config/redis.js";
 import { calculateDistance } from "../../utils/distance.js";
+
+// ======================================================
+// CREATE DRIVER PROFILE
+// ======================================================
 
 export const createDriverProfile = async (req, res) => {
   try {
-    const { phone, vehicleNo, vehicleType, latitude, longitude } = req.body;
+    const {
+      phone,
+      vehicleNo,
+      vehicleType,
+      latitude,
+      longitude,
+    } = req.body;
 
     // Validate required fields
-    if (!phone || !vehicleNo || !vehicleType || !latitude || !longitude) {
+    if (
+      !phone ||
+      !vehicleNo ||
+      !vehicleType ||
+      latitude === undefined ||
+      longitude === undefined
+    ) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required: phone, vehicleNo, vehicleType, latitude, longitude",
+        message:
+          "All fields are required: phone, vehicleNo, vehicleType, latitude, longitude",
+      });
+    }
+
+    const parsedLatitude = parseFloat(latitude);
+    const parsedLongitude = parseFloat(longitude);
+
+    if (
+      Number.isNaN(parsedLatitude) ||
+      Number.isNaN(parsedLongitude)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude must be valid numbers",
       });
     }
 
     const existingDriver = await prisma.driver.findUnique({
       where: {
         userId: req.user.id,
-      }
+      },
     });
 
     if (existingDriver) {
@@ -32,56 +62,68 @@ export const createDriverProfile = async (req, res) => {
         phone,
         vehicleNo,
         vehicleType,
+
         coordinates: {
           type: "Point",
           coordinates: [
-            parseFloat(longitude),
-            parseFloat(latitude),
+            parsedLongitude,
+            parsedLatitude,
           ],
         },
+
         userId: req.user.id,
-      }
+      },
+
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
     });
 
     return res.status(201).json({
       success: true,
       message: "Driver Profile Created Successfully",
-      driver
+      driver,
     });
-
   } catch (error) {
+    console.error("Create Driver Profile Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
-}
+};
+
+
+// ======================================================
+// GET DRIVER PROFILE
+// ======================================================
 
 export const getDriverProfile = async (req, res) => {
   try {
-    // Remove Redis cache check
-    // const cacheKey = `driver:${req.user.id}`;
-    // const cachedDriver = await redis.get(cacheKey);
-    // if (cachedDriver) {
-    //   return res.status(200).json({
-    //     success: true,
-    //     source: "cache",
-    //     driver: JSON.parse(cachedDriver),
-    //   });
-    // }
-
     const driver = await prisma.driver.findUnique({
       where: {
-        userId: req.user.id
+        userId: req.user.id,
       },
+
       include: {
         user: {
           select: {
+            id: true,
             name: true,
-            email: true
-          }
-        }
-      }
+            email: true,
+            role: true,
+            createdAt: true,
+          },
+        },
+      },
     });
 
     if (!driver) {
@@ -91,33 +133,31 @@ export const getDriverProfile = async (req, res) => {
       });
     }
 
-    // Remove Redis caching
-    // await redis.set(
-    //   cacheKey,
-    //   JSON.stringify(driver),
-    //   "EX",
-    //   3600
-    // );
-
     return res.status(200).json({
       success: true,
       driver,
     });
-    
   } catch (error) {
+    console.error("Get Driver Profile Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
-}
+};
+
+
+// ======================================================
+// UPDATE DRIVER PROFILE
+// ======================================================
 
 export const updateDriverProfile = async (req, res) => {
   try {
     const driver = await prisma.driver.findUnique({
       where: {
         userId: req.user.id,
-      }
+      },
     });
 
     if (!driver) {
@@ -127,46 +167,101 @@ export const updateDriverProfile = async (req, res) => {
       });
     }
 
-    const { phone, vehicleNo, vehicleType, latitude, longitude } = req.body;
+    const {
+      phone,
+      vehicleNo,
+      vehicleType,
+      latitude,
+      longitude,
+    } = req.body;
 
-    // Build update data with only provided fields
     const updateData = {};
-    if (phone) updateData.phone = phone;
-    if (vehicleNo) updateData.vehicleNo = vehicleNo;
-    if (vehicleType) updateData.vehicleType = vehicleType;
-    if (latitude && longitude) {
+
+    if (phone !== undefined) {
+      updateData.phone = phone;
+    }
+
+    if (vehicleNo !== undefined) {
+      updateData.vehicleNo = vehicleNo;
+    }
+
+    if (vehicleType !== undefined) {
+      updateData.vehicleType = vehicleType;
+    }
+
+    // Update coordinates only when both are provided
+    if (
+      latitude !== undefined &&
+      longitude !== undefined
+    ) {
+      const parsedLatitude = parseFloat(latitude);
+      const parsedLongitude = parseFloat(longitude);
+
+      if (
+        Number.isNaN(parsedLatitude) ||
+        Number.isNaN(parsedLongitude)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Latitude and longitude must be valid numbers",
+        });
+      }
+
       updateData.coordinates = {
         type: "Point",
         coordinates: [
-          parseFloat(longitude),
-          parseFloat(latitude)
-        ]
+          parsedLongitude,
+          parsedLatitude,
+        ],
       };
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No fields provided for update",
+      });
     }
 
     const updatedDriver = await prisma.driver.update({
       where: {
-        id: driver.id
+        id: driver.id,
       },
-      data: updateData,
-    });
 
-    // Remove Redis cache invalidation
-    // await redis.del(`driver:${req.user.id}`);
+      data: updateData,
+
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
 
     return res.status(200).json({
       success: true,
       message: "Driver Profile Updated Successfully",
       driver: updatedDriver,
     });
-
   } catch (error) {
+    console.error("Update Driver Profile Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
-}
+};
+
+
+// ======================================================
+// DRIVER DASHBOARD
+// ======================================================
 
 export const getDriverDashboard = async (req, res) => {
   try {
@@ -183,68 +278,74 @@ export const getDriverDashboard = async (req, res) => {
       });
     }
 
-    const totalDeliveries = await prisma.delivery.count({
-      where: {
-        driverId: driver.id,
-      },
-    });
-
-    const completedDeliveries = await prisma.delivery.count({
-      where: {
-        driverId: driver.id,
-        status: "DELIVERED",
-      },
-    });
-
-    const pendingDeliveries = await prisma.delivery.count({
-      where: {
-        driverId: driver.id,
-        status: {
-          notIn: ["DELIVERED", "CANCELLED", "REJECTED"],
+    const [
+      totalDeliveries,
+      completedDeliveries,
+      pendingDeliveries,
+      cancelledDeliveries,
+    ] = await Promise.all([
+      // Total deliveries
+      prisma.delivery.count({
+        where: {
+          driverId: driver.id,
         },
-      },
-    });
+      }),
 
-    const cancelledDeliveries = await prisma.delivery.count({
-      where: {
-        driverId: driver.id,
-        status: {
-          in: ["CANCELLED", "REJECTED"],
+      // Completed deliveries
+      prisma.delivery.count({
+        where: {
+          driverId: driver.id,
+          status: "DELIVERED",
         },
-      },
-    });
+      }),
 
-    // Calculate total earnings from completed deliveries
-    const earnings = await prisma.delivery.aggregate({
-      where: {
-        driverId: driver.id,
-        status: "DELIVERED",
-      },
-      _sum: {
-        // Add deliveryFee field to your Delivery model
-        // deliveryFee: true
-      }
-    });
+      // Pending / active deliveries
+      prisma.delivery.count({
+        where: {
+          driverId: driver.id,
+          status: {
+            notIn: [
+              "DELIVERED",
+              "CANCELLED",
+            ],
+          },
+        },
+      }),
+
+      // Cancelled deliveries
+      prisma.delivery.count({
+        where: {
+          driverId: driver.id,
+          status: "CANCELLED",
+        },
+      }),
+    ]);
 
     return res.status(200).json({
       success: true,
+
       dashboard: {
         totalDeliveries,
         completedDeliveries,
         pendingDeliveries,
         cancelledDeliveries,
         isAvailable: driver.isAvailable,
-        // earnings: earnings._sum.deliveryFee || 0
-      }
+      },
     });
-
   } catch (error) {
+    console.error("Get Driver Dashboard Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
-}
+};
+
+
+// ======================================================
+// GET AVAILABLE DRIVERS
+// ======================================================
 
 export const getAvailableDrivers = async (req, res) => {
   try {
@@ -252,17 +353,21 @@ export const getAvailableDrivers = async (req, res) => {
       where: {
         isAvailable: true,
       },
+
       include: {
         user: {
           select: {
+            id: true,
             name: true,
-            email: true
-          }
-        }
+            email: true,
+            role: true,
+          },
+        },
       },
+
       orderBy: {
-        createdAt: "desc"
-      }
+        createdAt: "desc",
+      },
     });
 
     return res.status(200).json({
@@ -270,21 +375,27 @@ export const getAvailableDrivers = async (req, res) => {
       totalDrivers: drivers.length,
       drivers,
     });
-     
   } catch (error) {
+    console.error("Get Available Drivers Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
-}
+};
+
+
+// ======================================================
+// TOGGLE DRIVER AVAILABILITY
+// ======================================================
 
 export const toggleAvailability = async (req, res) => {
   try {
     const driver = await prisma.driver.findUnique({
       where: {
-        userId: req.user.id
-      }
+        userId: req.user.id,
+      },
     });
 
     if (!driver) {
@@ -296,26 +407,39 @@ export const toggleAvailability = async (req, res) => {
 
     const updated = await prisma.driver.update({
       where: {
-        id: driver.id
+        id: driver.id,
       },
+
       data: {
-        isAvailable: !driver.isAvailable
-      }
+        isAvailable: !driver.isAvailable,
+      },
     });
 
     return res.status(200).json({
       success: true,
-      message: `Driver availability toggled to ${updated.isAvailable ? 'available' : 'unavailable'}`,
-      driver: updated
-    });
 
+      message: `Driver availability toggled to ${
+        updated.isAvailable
+          ? "available"
+          : "unavailable"
+      }`,
+
+      driver: updated,
+    });
   } catch (error) {
+    console.error("Toggle Driver Availability Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
-}
+};
+
+
+// ======================================================
+// GET NEARBY DRIVERS
+// ======================================================
 
 export const getNearbyDrivers = async (req, res) => {
   try {
@@ -332,43 +456,96 @@ export const getNearbyDrivers = async (req, res) => {
       });
     }
 
-    // Get radius from query params (default 50km)
-    const radius = parseInt(req.query.radius) || 50;
+    // Radius in KM
+    const radius = Math.max(
+      parseInt(req.query.radius) || 50,
+      1
+    );
 
-    const [farmerLng, farmerLat] = farmer.coordinates.coordinates;
+    // Farmer coordinates
+    const farmerCoordinates =
+      farmer.coordinates?.coordinates;
 
+    if (
+      !Array.isArray(farmerCoordinates) ||
+      farmerCoordinates.length !== 2
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Farmer coordinates are not available",
+      });
+    }
+
+    const [
+      farmerLongitude,
+      farmerLatitude,
+    ] = farmerCoordinates;
+
+    // Get available drivers
     const drivers = await prisma.driver.findMany({
       where: {
         isAvailable: true,
       },
+
       include: {
         user: {
           select: {
+            id: true,
             name: true,
             email: true,
-            profileImage: true,
+            role: true,
           },
         },
       },
+
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
+    // Calculate distance
     const nearbyDrivers = drivers
-      .filter((driver) => driver.coordinates?.coordinates)
-      .map((driver) => {
-        const [driverLng, driverLat] = driver.coordinates.coordinates;
-        const distance = calculateDistance(
-          farmerLat,
-          farmerLng,
-          driverLat,
-          driverLng
+      .filter((driver) => {
+        const coordinates =
+          driver.coordinates?.coordinates;
+
+        return (
+          Array.isArray(coordinates) &&
+          coordinates.length === 2
         );
+      })
+
+      .map((driver) => {
+        const [
+          driverLongitude,
+          driverLatitude,
+        ] = driver.coordinates.coordinates;
+
+        const distance = calculateDistance(
+          farmerLatitude,
+          farmerLongitude,
+          driverLatitude,
+          driverLongitude
+        );
+
         return {
           ...driver,
-          distanceKm: Number(distance.toFixed(2)),
+          distanceKm: Number(
+            distance.toFixed(2)
+          ),
         };
       })
-      .filter((driver) => driver.distanceKm <= radius)
-      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+      .filter(
+        (driver) =>
+          driver.distanceKm <= radius
+      )
+
+      .sort(
+        (a, b) =>
+          a.distanceKm - b.distanceKm
+      );
 
     return res.status(200).json({
       success: true,
@@ -377,6 +554,8 @@ export const getNearbyDrivers = async (req, res) => {
       drivers: nearbyDrivers,
     });
   } catch (error) {
+    console.error("Get Nearby Drivers Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -384,8 +563,15 @@ export const getNearbyDrivers = async (req, res) => {
   }
 };
 
-// Additional utility function: Get driver's delivery history
-export const getDriverDeliveryHistory = async (req, res) => {
+
+// ======================================================
+// GET DRIVER DELIVERY HISTORY
+// ======================================================
+
+export const getDriverDeliveryHistory = async (
+  req,
+  res
+) => {
   try {
     const driver = await prisma.driver.findUnique({
       where: {
@@ -400,56 +586,87 @@ export const getDriverDeliveryHistory = async (req, res) => {
       });
     }
 
-    const deliveries = await prisma.delivery.findMany({
-      where: {
-        driverId: driver.id,
-        status: "DELIVERED",
-      },
-      include: {
-        order: {
-          include: {
-            crop: {
-              select: {
-                title: true,
-                category: true,
+    const deliveries =
+      await prisma.delivery.findMany({
+        where: {
+          driverId: driver.id,
+          status: "DELIVERED",
+        },
+
+        include: {
+          order: {
+            include: {
+              crop: {
+                select: {
+                  id: true,
+                  title: true,
+                  category: true,
+                  quantity: true,
+                  unit: true,
+                  pricePerUnit: true,
+                  images: true,
+                },
               },
-            },
-            buyer: {
-              include: {
-                user: {
-                  select: {
-                    name: true,
-                    email: true,
+
+              buyer: {
+                select: {
+                  id: true,
+                  phone: true,
+                  village: true,
+                  district: true,
+                  state: true,
+                  profileImage: true,
+
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
                   },
                 },
               },
-            },
-            farmer: {
-              include: {
-                user: {
-                  select: {
-                    name: true,
-                    email: true,
+
+              farmer: {
+                select: {
+                  id: true,
+                  phone: true,
+                  village: true,
+                  district: true,
+                  state: true,
+                  profileImage: true,
+
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-      take: 20, // Limit to last 20 deliveries
-    });
+
+        orderBy: {
+          updatedAt: "desc",
+        },
+
+        take: 20,
+      });
 
     return res.status(200).json({
       success: true,
       total: deliveries.length,
       deliveries,
     });
-
   } catch (error) {
+    console.error(
+      "Get Driver Delivery History Error:",
+      error
+    );
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -457,8 +674,15 @@ export const getDriverDeliveryHistory = async (req, res) => {
   }
 };
 
-// Utility function: Get driver's current delivery
-export const getCurrentDelivery = async (req, res) => {
+
+// ======================================================
+// GET CURRENT DELIVERY
+// ======================================================
+
+export const getCurrentDelivery = async (
+  req,
+  res
+) => {
   try {
     const driver = await prisma.driver.findUnique({
       where: {
@@ -473,51 +697,80 @@ export const getCurrentDelivery = async (req, res) => {
       });
     }
 
-    const currentDelivery = await prisma.delivery.findFirst({
-      where: {
-        driverId: driver.id,
-        status: {
-          in: ["ASSIGNED", "PICKED_UP", "IN_TRANSIT"],
+    const currentDelivery =
+      await prisma.delivery.findFirst({
+        where: {
+          driverId: driver.id,
+
+          status: {
+            in: [
+              "ASSIGNED",
+              "PICKED_UP",
+              "IN_TRANSIT",
+            ],
+          },
         },
-      },
-      include: {
-        order: {
-          include: {
-            crop: {
-              select: {
-                title: true,
-                category: true,
+
+        include: {
+          order: {
+            include: {
+              crop: {
+                select: {
+                  id: true,
+                  title: true,
+                  category: true,
+                  quantity: true,
+                  unit: true,
+                  pricePerUnit: true,
+                  images: true,
+                },
               },
-            },
-            buyer: {
-              include: {
-                user: {
-                  select: {
-                    name: true,
-                    email: true,
-                    phone: true,
+
+              buyer: {
+                select: {
+                  id: true,
+                  phone: true,
+                  village: true,
+                  district: true,
+                  state: true,
+                  profileImage: true,
+
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
                   },
                 },
               },
-            },
-            farmer: {
-              include: {
-                user: {
-                  select: {
-                    name: true,
-                    email: true,
-                    phone: true,
+
+              farmer: {
+                select: {
+                  id: true,
+                  phone: true,
+                  village: true,
+                  district: true,
+                  state: true,
+                  profileImage: true,
+
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-    });
+
+        orderBy: {
+          updatedAt: "desc",
+        },
+      });
 
     if (!currentDelivery) {
       return res.status(404).json({
@@ -530,8 +783,12 @@ export const getCurrentDelivery = async (req, res) => {
       success: true,
       delivery: currentDelivery,
     });
-
   } catch (error) {
+    console.error(
+      "Get Current Delivery Error:",
+      error
+    );
+
     return res.status(500).json({
       success: false,
       message: error.message,

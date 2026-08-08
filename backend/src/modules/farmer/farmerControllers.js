@@ -83,7 +83,7 @@ export const getFarmerProfile = async (req, res) => {
             id: true,
             name: true,
             email: true,
-            profileImage: true,
+           
           }
         }
       }
