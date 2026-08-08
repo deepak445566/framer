@@ -15,6 +15,8 @@ import deliveryRouter from "./src/modules/Delivery/deliveryRoutes.js";
 import { initSocket } from "./src/socket/socket.js";
 import expenseRouter from "./src/modules/expense/expenseRoutes.js";
 import govRouter from "./src/modules/government/governRoutes.js";
+import adminAuthRouter from "./src/modules/admin/adminauth/adminAuthRoute.js";
+import servicesRouter from "./src/modules/admin/services/servicesRoutes.js";
 
 // Load environment variables
 dotenv.config();
@@ -65,6 +67,13 @@ app.use("/api/driver", driverRouter);
 app.use("/api/delivery", deliveryRouter);
 app.use("/api/expense", expenseRouter);
 app.use("/api/gov", govRouter);
+
+
+
+//Added by ayush
+app.use("/api/admin/auth", adminAuthRouter);
+app.use("/api/admin/services",servicesRouter)
+
 
 
 // 404 handler for undefined routes
