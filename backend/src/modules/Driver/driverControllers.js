@@ -14,6 +14,7 @@ export const createDriverProfile = async (req, res) => {
       vehicleType,
       latitude,
       longitude,
+      perKmRate
     } = req.body;
 
     // Validate required fields
@@ -22,7 +23,7 @@ export const createDriverProfile = async (req, res) => {
       !vehicleNo ||
       !vehicleType ||
       latitude === undefined ||
-      longitude === undefined
+      longitude === undefined || !perKmRate
     ) {
       return res.status(400).json({
         success: false,
@@ -62,7 +63,7 @@ export const createDriverProfile = async (req, res) => {
         phone,
         vehicleNo,
         vehicleType,
-
+ perKmRate: parseFloat(perKmRate),
         coordinates: {
           type: "Point",
           coordinates: [
@@ -173,6 +174,7 @@ export const updateDriverProfile = async (req, res) => {
       vehicleType,
       latitude,
       longitude,
+      perKmRate
     } = req.body;
 
     const updateData = {};
@@ -188,6 +190,7 @@ export const updateDriverProfile = async (req, res) => {
     if (vehicleType !== undefined) {
       updateData.vehicleType = vehicleType;
     }
+    if (perKmRate) updateData.perKmRate = parseFloat(perKmRate);
 
     // Update coordinates only when both are provided
     if (
@@ -283,58 +286,47 @@ export const getDriverDashboard = async (req, res) => {
       completedDeliveries,
       pendingDeliveries,
       cancelledDeliveries,
+      earningsAgg,
     ] = await Promise.all([
-      // Total deliveries
+      prisma.delivery.count({
+        where: { driverId: driver.id },
+      }),
+
+      prisma.delivery.count({
+        where: { driverId: driver.id, status: "DELIVERED" },
+      }),
+
       prisma.delivery.count({
         where: {
           driverId: driver.id,
+          status: { notIn: ["DELIVERED", "CANCELLED"] },
         },
       }),
 
-      // Completed deliveries
       prisma.delivery.count({
-        where: {
-          driverId: driver.id,
-          status: "DELIVERED",
-        },
+        where: { driverId: driver.id, status: "CANCELLED" },
       }),
 
-      // Pending / active deliveries
-      prisma.delivery.count({
-        where: {
-          driverId: driver.id,
-          status: {
-            notIn: [
-              "DELIVERED",
-              "CANCELLED",
-            ],
-          },
-        },
-      }),
-
-      // Cancelled deliveries
-      prisma.delivery.count({
-        where: {
-          driverId: driver.id,
-          status: "CANCELLED",
-        },
+      // 👇 Sum of driverEarning for delivered orders
+      prisma.delivery.aggregate({
+        where: { driverId: driver.id, status: "DELIVERED" },
+        _sum: { driverEarning: true },
       }),
     ]);
 
     return res.status(200).json({
       success: true,
-
       dashboard: {
         totalDeliveries,
         completedDeliveries,
         pendingDeliveries,
         cancelledDeliveries,
+        totalEarnings: earningsAgg._sum.driverEarning || 0,
         isAvailable: driver.isAvailable,
       },
     });
   } catch (error) {
     console.error("Get Driver Dashboard Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -495,6 +487,7 @@ export const getNearbyDrivers = async (req, res) => {
             name: true,
             email: true,
             role: true,
+            
           },
         },
       },

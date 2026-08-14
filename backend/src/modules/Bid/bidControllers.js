@@ -32,17 +32,24 @@ export const placeBid = async(req,res)=>{
       });
     }
 
+    // ✅ Sirf PENDING ya ACCEPTED bid ko "existing/active" maano
     const existingBid = await prisma.bid.findFirst({
       where: {
         buyerId: buyer.id,
         cropId: crop.id,
+        status: {
+          in: ["PENDING", "ACCEPTED"],
+        },
       },
     });
 
     if (existingBid) {
       return res.status(400).json({
         success: false,
-        message: "You have already placed a bid on this crop",
+        message:
+          existingBid.status === "ACCEPTED"
+            ? "This bid has already been accepted"
+            : "You already have an active bid on this crop",
       });
     }
 
@@ -55,8 +62,6 @@ export const placeBid = async(req,res)=>{
         cropId:crop.id
       }
     })
-
-    // Remove: await redis.del(`crop:${crop.id}`);
 
     return res.status(201).json({
       success:true,
@@ -268,6 +273,7 @@ export const getCropBids = async(req,res)=>{
 
 export const acceptBid = async (req, res) => {
   try {
+    const PLATFORM_COMMISSION_RATE = 0.10;
     const { bidId } = req.params;
 
     const farmer = await prisma.farmer.findUnique({
@@ -330,11 +336,16 @@ export const acceptBid = async (req, res) => {
       },
     });
 
+    const platformCommission = bid.amount * PLATFORM_COMMISSION_RATE;
+const farmerEarning = bid.amount - platformCommission;
+
     const order = await prisma.order.create({
       data:{
         quantity:bid.quantity,
         pricePerUnit:bid.crop.pricePerUnit,
         totalAmount:bid.amount,
+         platformCommission,     
+    farmerEarning,
         buyerId:bid.buyerId,
         farmerId:farmer.id,
         cropId:bid.cropId,

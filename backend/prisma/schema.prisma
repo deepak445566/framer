@@ -136,6 +136,8 @@ model Order{
   quantity Float
   pricePerUnit Float
   totalAmount Float
+   platformCommission Float   @default(0)   // 10% of totalAmount — admin ko
+  farmerEarning       Float  @default(0) 
   status OrderStatus @default(PENDING)
   buyerId Int
   farmerId Int
@@ -158,6 +160,7 @@ model Driver{
   phone       String
   vehicleNo   String
   vehicleType String
+  perKmRate  Float  @default(0)
   isAvailable Boolean  @default(true)
 userId Int @unique
   user   User @relation(fields: [userId], references: [id])
@@ -177,7 +180,9 @@ model Delivery{
 pickupLocation  Json
   dropLocation    Json
    status DeliveryStatus @default(PENDING)
-
+ deliveryFee      Float?  // farmer jo amount set karega driver ko dene ke liye
+  driverEarning    Float   @default(0)   // 90% of deliveryFee
+  adminCommission  Float   @default(0) 
     createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([driverId])

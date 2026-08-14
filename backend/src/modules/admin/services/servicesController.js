@@ -8,6 +8,9 @@ import prisma from "../../../config/prisma.js";
 
 export const getDashboardStats = async (req, res) => {
   try {
+
+
+    
     const [
       totalUsers,
       totalFarmers,
@@ -52,6 +55,21 @@ export const getDashboardStats = async (req, res) => {
       }),
     ]);
 
+    const [orderCommission, deliveryCommission] = await Promise.all([
+  prisma.order.aggregate({
+    where: { status: "DELIVERED" },
+    _sum: { platformCommission: true },
+  }),
+  prisma.delivery.aggregate({
+    where: { status: "DELIVERED" },
+    _sum: { adminCommission: true },
+  }),
+]);
+
+const totalCommission =
+  (orderCommission._sum.platformCommission || 0) +
+  (deliveryCommission._sum.adminCommission || 0);
+
     return res.status(200).json({
       success: true,
       dashboard: {
@@ -66,6 +84,7 @@ export const getDashboardStats = async (req, res) => {
         totalExpenses,
         pendingOrders,
         deliveredOrders,
+          totalCommissionEarned: totalCommission,
       },
     });
   } catch (error) {

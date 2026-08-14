@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
 import { getAvailableDrivers } from "../../api/driverApi.js";
+import {
+  Truck,
+  Mail,
+  Phone,
+  Hash,
+  CircleDot,
+  Loader2,
+  AlertCircle,
+  UserX,
+} from "lucide-react";
 
 const AvailableDrivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -20,31 +30,82 @@ const AvailableDrivers = () => {
     load();
   }, []);
 
-  if (loading) return <div className="p-6 text-gray-500">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 p-10 text-gray-500">
+        <Loader2 size={18} className="animate-spin text-green-600" />
+        Loading...
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold mb-6">Available Drivers</h2>
-
-      {error && <p className="bg-red-100 text-red-600 text-sm p-2 rounded mb-4">{error}</p>}
-
-      {drivers.length === 0 ? (
-        <p className="text-gray-500">No drivers available right now.</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {drivers.map((driver) => (
-            <div key={driver.id} className="bg-white rounded-lg shadow p-4">
-              <h3 className="font-semibold">{driver.user?.name}</h3>
-              <p className="text-sm text-gray-500">{driver.user?.email}</p>
-              <p className="text-sm mt-1">Phone: {driver.phone}</p>
-              <p className="text-sm">Vehicle: {driver.vehicleType} ({driver.vehicleNo})</p>
-              <span className="inline-block mt-2 px-2 py-1 rounded text-xs bg-green-100 text-green-700">
-                Available
-              </span>
-            </div>
-          ))}
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center gap-3 mb-6">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-green-600 to-green-500 text-white shadow-md shadow-green-200">
+            <Truck size={18} />
+          </span>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Available Drivers</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Drivers ready to pick up your order</p>
+          </div>
         </div>
-      )}
+
+        {error && (
+          <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-3 py-2 rounded-lg mb-5 border border-red-100">
+            <AlertCircle size={15} />
+            {error}
+          </div>
+        )}
+
+        {drivers.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-green-100 p-10 text-center">
+            <UserX className="mx-auto text-green-300 mb-3" size={36} />
+            <p className="text-gray-500">No drivers available right now.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {drivers.map((driver) => (
+              <div
+                key={driver.id}
+                className="bg-white rounded-2xl shadow-sm border border-green-100 p-5 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center justify-center w-11 h-11 rounded-full bg-green-100 text-green-700 font-bold text-sm">
+                      {driver.user?.name?.charAt(0)?.toUpperCase() || "D"}
+                    </span>
+                    <div>
+                      <h3 className="font-semibold text-gray-800">{driver.user?.name}</h3>
+                      <p className="flex items-center gap-1 text-xs text-gray-500">
+                        <Mail size={11} />
+                        {driver.user?.email}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 text-sm text-gray-600 border-t border-green-100 pt-3">
+                  <p className="flex items-center gap-1.5">
+                    <Phone size={13} className="text-green-600" />
+                    {driver.phone}
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <Hash size={13} className="text-green-600" />
+                    {driver.vehicleType} ({driver.vehicleNo})
+                  </p>
+                </div>
+
+                <span className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                  <CircleDot size={10} className="animate-pulse" />
+                  Available
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

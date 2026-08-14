@@ -2,6 +2,26 @@ import { useEffect, useState } from "react";
 import { createFarmerProfile, getFarmerProfile, getFarmerDashboard } from "../../api/farmerApi.js";
 import FarmerNav from "../../components/farmer/FarmerNav.jsx";
 import { Link } from "react-router-dom";
+import {
+  Sprout,
+  Phone,
+  Home,
+  Wheat,
+  MapPin,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Package,
+  Leaf,
+  ShoppingCart,
+  Clock,
+  CheckCheck,
+  Gavel,
+  Hourglass,
+  Wallet,
+  Receipt,
+  PackagePlus,
+} from "lucide-react";
 
 const FarmerDashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -90,89 +110,206 @@ const FarmerDashboard = () => {
     }
   };
 
-  if (loading) return <div className="p-6 text-gray-500">Loading dashboard...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 p-10 text-gray-500">
+        <Loader2 size={18} className="animate-spin text-green-600" />
+        Loading dashboard...
+      </div>
+    );
+  }
 
   if (!hasProfile) {
     return (
-      <div className="p-6 max-w-lg mx-auto">
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Complete Your Farmer Profile</h2>
-          {error && <p className="bg-red-100 text-red-600 text-sm p-2 rounded mb-4">{error}</p>}
-
-          <form onSubmit={handleCreateProfile} className="space-y-3">
-            <input name="phone" placeholder="Phone" value={form.phone} onChange={handleChange} className="w-full border rounded px-3 py-2" required />
-            <input name="village" placeholder="Village" value={form.village} onChange={handleChange} className="w-full border rounded px-3 py-2" required />
-            <input name="district" placeholder="District" value={form.district} onChange={handleChange} className="w-full border rounded px-3 py-2" required />
-            <input name="state" placeholder="State" value={form.state} onChange={handleChange} className="w-full border rounded px-3 py-2" required />
-            <input
-              name="cropTypes"
-              placeholder="Crop Types (comma separated e.g. Wheat, Rice)"
-              value={form.cropTypes}
-              onChange={handleChange}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-
-            <div className="border rounded-lg p-3 bg-gray-50">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Your Location</span>
-                <button
-                  type="button"
-                  onClick={detectLocation}
-                  className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                >
-                  {locStatus === "loading" ? "Detecting..." : "Detect Location"}
-                </button>
+      <div className="min-h-[80vh] bg-gradient-to-b from-green-50 via-white to-white p-6 flex items-start justify-center">
+        <div className="w-full max-w-lg">
+          <div className="bg-white shadow-xl shadow-green-100 rounded-2xl border border-green-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-green-600 to-green-500 px-6 py-5">
+              <div className="flex items-center gap-2 text-white">
+                <Sprout size={22} />
+                <h2 className="text-xl font-bold">Complete Your Farmer Profile</h2>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <input name="latitude" value={form.latitude} readOnly placeholder="Latitude" className="border rounded px-3 py-2 bg-gray-100 text-sm text-gray-600" />
-                <input name="longitude" value={form.longitude} readOnly placeholder="Longitude" className="border rounded px-3 py-2 bg-gray-100 text-sm text-gray-600" />
-              </div>
-              {locStatus === "done" && <p className="text-xs text-green-600 mt-2">✓ Location detected</p>}
+              <p className="text-green-50 text-sm mt-1">
+                Set up your details to start selling crops
+              </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting || !form.latitude}
-              className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 disabled:opacity-60"
-            >
-              {submitting ? "Saving..." : "Save Profile"}
-            </button>
-          </form>
+            <div className="p-6">
+              {error && (
+                <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-3 py-2 rounded-lg mb-4 border border-red-100">
+                  <AlertCircle size={15} />
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleCreateProfile} className="space-y-4">
+                <div className="relative">
+                  <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600" />
+                  <input
+                    name="phone"
+                    placeholder="Phone"
+                    value={form.phone}
+                    onChange={handleChange}
+                    className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400"
+                    required
+                  />
+                </div>
+
+                <div className="relative">
+                  <Home size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600" />
+                  <input
+                    name="village"
+                    placeholder="Village"
+                    value={form.village}
+                    onChange={handleChange}
+                    className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    name="district"
+                    placeholder="District"
+                    value={form.district}
+                    onChange={handleChange}
+                    className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400"
+                    required
+                  />
+                  <input
+                    name="state"
+                    placeholder="State"
+                    value={form.state}
+                    onChange={handleChange}
+                    className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400"
+                    required
+                  />
+                </div>
+
+                <div className="relative">
+                  <Wheat size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600" />
+                  <input
+                    name="cropTypes"
+                    placeholder="Crop Types (comma separated e.g. Wheat, Rice)"
+                    value={form.cropTypes}
+                    onChange={handleChange}
+                    className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400"
+                    required
+                  />
+                </div>
+
+                <div className="border border-green-100 rounded-xl p-4 bg-green-50/50">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                      <MapPin size={15} className="text-green-600" />
+                      Your Location
+                    </span>
+                    <button
+                      type="button"
+                      onClick={detectLocation}
+                      className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-green-600 to-green-500 text-white px-3 py-1.5 rounded-full shadow-sm shadow-green-200 hover:shadow-md transition-all"
+                    >
+                      {locStatus === "loading" ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" />
+                          Detecting...
+                        </>
+                      ) : (
+                        "Detect Location"
+                      )}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      name="latitude"
+                      value={form.latitude}
+                      readOnly
+                      placeholder="Latitude"
+                      className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm text-gray-600"
+                    />
+                    <input
+                      name="longitude"
+                      value={form.longitude}
+                      readOnly
+                      placeholder="Longitude"
+                      className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm text-gray-600"
+                    />
+                  </div>
+                  {locStatus === "done" && (
+                    <p className="flex items-center gap-1.5 text-xs text-green-700 font-medium mt-2.5">
+                      <CheckCircle2 size={13} />
+                      Location detected
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submitting || !form.latitude}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white font-semibold py-2.5 rounded-full shadow-md shadow-green-200 hover:shadow-lg hover:from-green-700 hover:to-green-600 transition-all disabled:opacity-50 disabled:shadow-none"
+                >
+                  {submitting ? "Saving..." : "Save Profile"}
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <FarmerNav />
-      <div className="p-6">
-        <h2 className="text-2xl font-semibold mb-6">Farmer Dashboard</h2>
+      <div className="p-6 max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Farmer Dashboard</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Your farm's activity at a glance</p>
+          </div>
+          <Link
+            to="/farmer/crops/create"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md shadow-green-200 hover:shadow-lg transition-all"
+          >
+            <PackagePlus size={15} />
+            Add New Crop
+          </Link>
+        </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <StatCard label="Total Crops" value={dashboard.totalCrops} />
-          <StatCard label="Active Crops" value={dashboard.activeCrops} />
-          <StatCard label="Total Orders" value={dashboard.totalOrders} />
-          <StatCard label="Pending Orders" value={dashboard.pendingOrders} />
-          <StatCard label="Delivered Orders" value={dashboard.deliveredOrders} />
-          <StatCard label="Total Bids" value={dashboard.totalBids} />
-          <StatCard label="Pending Bids" value={dashboard.pendingBids} />
-          <StatCard label="Total Revenue" value={`₹${dashboard.totalRevenue}`} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <StatCard icon={<Package size={18} />} label="Total Crops" value={dashboard.totalCrops} />
+          <StatCard icon={<Leaf size={18} />} label="Active Crops" value={dashboard.activeCrops} />
+          <StatCard icon={<ShoppingCart size={18} />} label="Total Orders" value={dashboard.totalOrders} />
+          <StatCard icon={<Clock size={18} />} label="Pending Orders" value={dashboard.pendingOrders} />
+          <StatCard icon={<CheckCheck size={18} />} label="Delivered Orders" value={dashboard.deliveredOrders} />
+          <StatCard icon={<Gavel size={18} />} label="Total Bids" value={dashboard.totalBids} />
+          <StatCard icon={<Hourglass size={18} />} label="Pending Bids" value={dashboard.pendingBids} />
+          <StatCard icon={<Wallet size={18} />} label="Total Revenue" value={`₹${dashboard.totalRevenue}`} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Orders */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-4 py-3 border-b font-medium">Recent Orders</div>
+          <div className="bg-white rounded-2xl shadow-sm border border-green-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-green-100 bg-gradient-to-r from-green-50 to-white flex items-center gap-2 font-semibold text-gray-800">
+              <Receipt size={16} className="text-green-600" />
+              Recent Orders
+            </div>
             {dashboard.recentOrders.length === 0 ? (
-              <p className="p-4 text-gray-500 text-sm">No orders yet</p>
+              <div className="p-8 text-center">
+                <ShoppingCart className="mx-auto text-green-300 mb-2" size={28} />
+                <p className="text-gray-500 text-sm">No orders yet</p>
+              </div>
             ) : (
-              <ul className="divide-y">
+              <ul className="divide-y divide-green-50">
                 {dashboard.recentOrders.map((o) => (
-                  <li key={o.id} className="p-3 text-sm flex justify-between">
-                    <span>{o.crop?.title} — {o.buyer?.user?.name}</span>
-                    <span className="text-gray-500">₹{o.totalAmount}</span>
+                  <li
+                    key={o.id}
+                    className="p-3.5 text-sm flex justify-between items-center hover:bg-green-50/30 transition-colors"
+                  >
+                    <span className="text-gray-700">
+                      {o.crop?.title} <span className="text-gray-400">— {o.buyer?.user?.name}</span>
+                    </span>
+                    <span className="font-semibold text-green-700">₹{o.totalAmount}</span>
                   </li>
                 ))}
               </ul>
@@ -180,39 +317,46 @@ const FarmerDashboard = () => {
           </div>
 
           {/* Recent Bids */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-4 py-3 border-b font-medium">Recent Bids</div>
+          <div className="bg-white rounded-2xl shadow-sm border border-green-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-green-100 bg-gradient-to-r from-green-50 to-white flex items-center gap-2 font-semibold text-gray-800">
+              <Gavel size={16} className="text-green-600" />
+              Recent Bids
+            </div>
             {dashboard.recentBids.length === 0 ? (
-              <p className="p-4 text-gray-500 text-sm">No bids yet</p>
+              <div className="p-8 text-center">
+                <Gavel className="mx-auto text-green-300 mb-2" size={28} />
+                <p className="text-gray-500 text-sm">No bids yet</p>
+              </div>
             ) : (
-              <ul className="divide-y">
+              <ul className="divide-y divide-green-50">
                 {dashboard.recentBids.map((b) => (
-                  <li key={b.id} className="p-3 text-sm flex justify-between">
-                    <span>{b.crop?.title} — {b.buyer?.user?.name}</span>
-                    <span className="text-gray-500">₹{b.amount}</span>
+                  <li
+                    key={b.id}
+                    className="p-3.5 text-sm flex justify-between items-center hover:bg-green-50/30 transition-colors"
+                  >
+                    <span className="text-gray-700">
+                      {b.crop?.title} <span className="text-gray-400">— {b.buyer?.user?.name}</span>
+                    </span>
+                    <span className="font-semibold text-green-700">₹{b.amount}</span>
                   </li>
                 ))}
               </ul>
             )}
           </div>
         </div>
-
-        <div className="mt-6">
-          <Link
-            to="/farmer/crops/create"
-            className="inline-block bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 text-sm"
-          >
-            + Add New Crop
-          </Link>
-        </div>
       </div>
     </div>
   );
 };
 
-const StatCard = ({ label, value }) => (
-  <div className="bg-white rounded-lg shadow p-4">
-    <p className="text-sm text-gray-500">{label}</p>
+const StatCard = ({ icon, label, value }) => (
+  <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 hover:shadow-md transition-shadow">
+    <div className="flex items-center gap-2 mb-2">
+      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600">
+        {icon}
+      </span>
+      <p className="text-sm text-gray-500">{label}</p>
+    </div>
     <p className="text-2xl font-bold text-green-700">{value}</p>
   </div>
 );

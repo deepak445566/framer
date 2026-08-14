@@ -1,8 +1,33 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getOrderDetails, cancelOrder } from "../../api/orderApi.js";
+import {
+  ArrowLeft,
+  Package,
+  Sprout,
+  IndianRupee,
+  User,
+  Mail,
+  Phone,
+  Truck,
+  XCircle,
+  Loader2,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+} from "lucide-react";
 
 const cancellableStatuses = ["PENDING", "CONFIRMED", "DRIVER_ASSIGNED"];
+
+const statusConfig = {
+  PENDING: { color: "bg-yellow-100 text-yellow-700", icon: Clock },
+  CONFIRMED: { color: "bg-blue-100 text-blue-700", icon: CheckCircle2 },
+  DRIVER_ASSIGNED: { color: "bg-blue-100 text-blue-700", icon: Truck },
+  PICKED_UP: { color: "bg-purple-100 text-purple-700", icon: Truck },
+  IN_TRANSIT: { color: "bg-purple-100 text-purple-700", icon: Truck },
+  DELIVERED: { color: "bg-green-100 text-green-700", icon: CheckCircle2 },
+  CANCELLED: { color: "bg-red-100 text-red-600", icon: XCircle },
+};
 
 const OrderDetails = () => {
   const { orderId } = useParams();
@@ -40,62 +65,135 @@ const OrderDetails = () => {
     }
   };
 
-  if (loading) return <div className="p-6 text-gray-500">Loading...</div>;
-  if (error) return <div className="p-6 text-red-600">{error}</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 p-10 text-gray-500">
+        <Loader2 size={18} className="animate-spin text-green-600" />
+        Loading...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg border border-red-100">
+          <AlertCircle size={16} />
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   if (!order) return null;
 
+  const config = statusConfig[order.status] || { color: "bg-gray-100 text-gray-600", icon: Package };
+  const StatusIcon = config.icon;
+
   return (
-    <div className="p-6 max-w-2xl">
-      <button onClick={() => navigate(-1)} className="text-sm text-gray-500 mb-4">
-        ← Back
-      </button>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-2xl mx-auto">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-700 mb-4 transition-colors"
+        >
+          <ArrowLeft size={15} />
+          Back
+        </button>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-xl font-semibold">Order #{order.id}</h2>
-          <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">
-            {order.status}
-          </span>
-        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-green-100 overflow-hidden">
+          <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-green-50 to-white border-b border-green-100">
+            <h2 className="text-xl font-bold text-gray-800">Order #{order.id}</h2>
+            <span
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${config.color}`}
+            >
+              <StatusIcon size={12} />
+              {order.status}
+            </span>
+          </div>
 
-        <div className="space-y-2 text-sm">
-          <p><span className="font-medium">Crop:</span> {order.crop?.title}</p>
-          <p><span className="font-medium">Quantity:</span> {order.quantity}</p>
-          <p><span className="font-medium">Price per unit:</span> ₹{order.pricePerUnit}</p>
-          <p><span className="font-medium">Total Amount:</span> ₹{order.totalAmount}</p>
-        </div>
+          <div className="p-6">
+            <div className="space-y-2.5 text-sm">
+              <p className="flex items-center gap-2 text-gray-700">
+                <Sprout size={15} className="text-green-600" />
+                <span className="font-medium">Crop:</span> {order.crop?.title}
+              </p>
+              <p className="flex items-center gap-2 text-gray-700">
+                <Package size={15} className="text-green-600" />
+                <span className="font-medium">Quantity:</span> {order.quantity}
+              </p>
+              <p className="flex items-center gap-2 text-gray-700">
+                <IndianRupee size={15} className="text-green-600" />
+                <span className="font-medium">Price per unit:</span> ₹{order.pricePerUnit}
+              </p>
+              <p className="flex items-center gap-2 text-gray-800 font-semibold">
+                <IndianRupee size={15} className="text-green-600" />
+                <span className="font-medium">Total Amount:</span> ₹{order.totalAmount}
+              </p>
+            </div>
 
-        <div className="border-t mt-4 pt-4">
-          <h3 className="font-medium mb-2">Farmer Details</h3>
-          <p className="text-sm">{order.farmer?.user?.name}</p>
-          <p className="text-sm text-gray-500">{order.farmer?.user?.email}</p>
-          <p className="text-sm text-gray-500">{order.farmer?.user?.phone}</p>
-        </div>
+            <div className="border-t border-green-100 mt-5 pt-5">
+              <h3 className="flex items-center gap-1.5 font-semibold text-gray-800 mb-3">
+                <User size={15} className="text-green-600" />
+                Farmer Details
+              </h3>
+              <div className="bg-green-50/50 border border-green-100 rounded-xl p-3 space-y-1">
+                <p className="text-sm font-medium text-gray-800">{order.farmer?.user?.name}</p>
+                <p className="flex items-center gap-1.5 text-sm text-gray-500">
+                  <Mail size={12} />
+                  {order.farmer?.user?.email}
+                </p>
+                <p className="flex items-center gap-1.5 text-sm text-gray-500">
+                  <Phone size={12} />
+                  {order.farmer?.user?.phone}
+                </p>
+              </div>
+            </div>
 
-        {order.delivery && (
-          <div className="border-t mt-4 pt-4">
-            <h3 className="font-medium mb-2">Delivery Status</h3>
-            <p className="text-sm mb-1">
-              Status: <span className="font-medium">{order.delivery.status}</span>
-            </p>
-            {order.delivery.driver && (
-              <>
-                <p className="text-sm">Driver: {order.delivery.driver.user?.name}</p>
-                <p className="text-sm text-gray-500">{order.delivery.driver.user?.email}</p>
-              </>
+            {order.delivery && (
+              <div className="border-t border-green-100 mt-5 pt-5">
+                <h3 className="flex items-center gap-1.5 font-semibold text-gray-800 mb-3">
+                  <Truck size={15} className="text-green-600" />
+                  Delivery Status
+                </h3>
+                <div className="bg-green-50/50 border border-green-100 rounded-xl p-3 space-y-1">
+                  <p className="text-sm text-gray-700">
+                    Status: <span className="font-semibold">{order.delivery.status}</span>
+                  </p>
+                  {order.delivery.driver && (
+                    <>
+                      <p className="text-sm text-gray-700 mt-1">{order.delivery.driver.user?.name}</p>
+                      <p className="flex items-center gap-1.5 text-sm text-gray-500">
+                        <Mail size={12} />
+                        {order.delivery.driver.user?.email}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {cancellableStatuses.includes(order.status) && (
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="flex items-center gap-1.5 mt-6 bg-red-50 text-red-600 border border-red-200 px-5 py-2 rounded-full text-sm font-semibold hover:bg-red-100 transition-all disabled:opacity-60"
+              >
+                {cancelling ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={14} />
+                    Cancel Order
+                  </>
+                )}
+              </button>
             )}
           </div>
-        )}
-
-        {cancellableStatuses.includes(order.status) && (
-          <button
-            onClick={handleCancel}
-            disabled={cancelling}
-            className="mt-6 bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600 disabled:opacity-60"
-          >
-            {cancelling ? "Cancelling..." : "Cancel Order"}
-          </button>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -1,97 +1,55 @@
 import prisma from "../../config/prisma.js";
 // Remove: import redis from "../../config/redis.js";
 
+import { calculateDistance } from "../../utils/distance.js";
+
+const PLATFORM_COMMISSION_RATE = 0.10;
+
 export const bookDriver = async (req, res) => {
   try {
     const { orderId } = req.params;
     const { driverId } = req.body;
 
     if (!driverId) {
-      return res.status(400).json({
-        success: false,
-        message: "Driver ID is required",
-      });
+      return res.status(400).json({ success: false, message: "Driver ID is required" });
     }
 
-    const farmer = await prisma.farmer.findUnique({
-      where: {
-        userId: req.user.id,
-      }
-    });
+    const farmer = await prisma.farmer.findUnique({ where: { userId: req.user.id } });
+    if (!farmer) return res.status(404).json({ success: false, message: "Farmer not found" });
 
-    if (!farmer) {
-      return res.status(404).json({
-        success: false,
-        message: "Farmer not found"
-      });
-    }
-
-    const order = await prisma.order.findFirst({
-      where: {
-        id: parseInt(orderId),
-        farmerId: farmer.id
-      }
-    });
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
-
+    const order = await prisma.order.findFirst({ where: { id: parseInt(orderId), farmerId: farmer.id } });
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
     if (order.status !== "CONFIRMED") {
-      return res.status(400).json({
-        success: false,
-        message: "Order is not confirmed",
-      });
+      return res.status(400).json({ success: false, message: "Order is not confirmed" });
     }
 
-    const driver = await prisma.driver.findUnique({
-      where: {
-        id: parseInt(driverId),
-      },
-    });
+    const driver = await prisma.driver.findUnique({ where: { id: parseInt(driverId) } });
+    if (!driver) return res.status(404).json({ success: false, message: "Driver not found" });
+    if (!driver.isAvailable) return res.status(400).json({ success: false, message: "Driver is not available" });
 
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        message: "Driver not found",
-      });
-    }
-
-    if (!driver.isAvailable) {
-      return res.status(400).json({
-        success: false,
-        message: "Driver is not available",
-      });
-    }
-
-    const existingDelivery = await prisma.delivery.findUnique({
-      where: {
-        orderId: order.id,
-      }
-    });
-
+    const existingDelivery = await prisma.delivery.findUnique({ where: { orderId: order.id } });
     if (existingDelivery) {
-      return res.status(400).json({
-        success: false,
-        message: "Driver already booked for this order",
-      });
+      return res.status(400).json({ success: false, message: "Driver already booked for this order" });
     }
 
-    const buyer = await prisma.buyer.findUnique({
-      where: {
-        id: order.buyerId
-      }
-    });
+    const buyer = await prisma.buyer.findUnique({ where: { id: order.buyerId } });
+    if (!buyer) return res.status(404).json({ success: false, message: "Buyer not found" });
 
-    if (!buyer) {
-      return res.status(404).json({
-        success: false,
-        message: "Buyer not found",
-      });
-    }
+    // ---- Sirf Farmer→Buyer distance × driver rate ----
+    const [farmerLng, farmerLat] = farmer.coordinates.coordinates;
+    const [buyerLng, buyerLat] = buyer.coordinates.coordinates;
+console.log("Farmer coords object:", JSON.stringify(farmer.coordinates));
+console.log("Buyer coords object:", JSON.stringify(buyer.coordinates));
+console.log("Farmer lat/lng used:", farmerLat, farmerLng);
+console.log("Buyer lat/lng used:", buyerLat, buyerLng);
+    const distanceKm = calculateDistance(farmerLat, farmerLng, buyerLat, buyerLng);
+
+    const PLATFORM_COMMISSION_RATE = 0.10;
+    const deliveryFee = Number((distanceKm * driver.perKmRate).toFixed(2));   // 👈 sirf ye
+    const adminCommission = Number((deliveryFee * PLATFORM_COMMISSION_RATE).toFixed(2));
+    const driverEarning = Number((deliveryFee - adminCommission).toFixed(2));
+
+    console.log("Distance:", distanceKm, "km | Fee:", deliveryFee); // debug ke liye
 
     const delivery = await prisma.delivery.create({
       data: {
@@ -99,23 +57,24 @@ export const bookDriver = async (req, res) => {
         driverId: driver.id,
         pickupLocation: farmer.coordinates,
         dropLocation: buyer.coordinates,
-        status: "PENDING"
+        status: "PENDING",
+        deliveryFee,
+        driverEarning,
+        adminCommission,
       }
     });
 
     return res.status(201).json({
       success: true,
       message: "Driver booking request sent",
+      distanceKm: Number(distanceKm.toFixed(2)),
       delivery
     });
 
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return res.status(500).json({ success: false, message: error.message });
   }
-}
+};
 
 export const acceptDelivery = async (req, res) => {
   try {
@@ -469,82 +428,34 @@ export const updateDeliveryStatus = async (req, res) => {
 
 export const getDriverDashboard = async (req, res) => {
   try {
-    const driver = await prisma.driver.findUnique({
-      where: {
-        userId: req.user.id
-      }
-    });
+    const driver = await prisma.driver.findUnique({ where: { userId: req.user.id } });
+    if (!driver) return res.status(404).json({ success: false, message: "Driver profile not found" });
 
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        message: "Driver not found",
-      });
-    }
-
-    const totalDeliveries = await prisma.delivery.count({
-      where: {
-        driverId: driver.id
-      }
-    });
-
-    const assigned = await prisma.delivery.count({
-      where: {
-        driverId: driver.id,
-        status: "ASSIGNED",
-      },
-    });
-
-    const pickedUp = await prisma.delivery.count({
-      where: {
-        driverId: driver.id,
-        status: "PICKED_UP",
-      },
-    });
-
-    const inTransit = await prisma.delivery.count({
-      where: {
-        driverId: driver.id,
-        status: "IN_TRANSIT",
-      },
-    });
-
-    const delivered = await prisma.delivery.count({
-      where: {
-        driverId: driver.id,
-        status: "DELIVERED",
-      },
-    });
-
-    // Get total earnings from delivered orders
-    const earnings = await prisma.delivery.aggregate({
-      where: {
-        driverId: driver.id,
-        status: "DELIVERED"
-      },
-      _sum: {
-        // Assuming you have a deliveryFee field
-        // If not, you can calculate from order total
-      }
-    });
+    const [totalDeliveries, completedDeliveries, pendingDeliveries, cancelledDeliveries, earnings] =
+      await Promise.all([
+        prisma.delivery.count({ where: { driverId: driver.id } }),
+        prisma.delivery.count({ where: { driverId: driver.id, status: "DELIVERED" } }),
+        prisma.delivery.count({ where: { driverId: driver.id, status: { notIn: ["DELIVERED", "CANCELLED"] } } }),
+        prisma.delivery.count({ where: { driverId: driver.id, status: "CANCELLED" } }),
+        prisma.delivery.aggregate({
+          where: { driverId: driver.id, status: "DELIVERED" },
+          _sum: { driverEarning: true },  // 👈
+        }),
+      ]);
 
     return res.status(200).json({
       success: true,
       dashboard: {
         totalDeliveries,
-        assigned,
-        pickedUp,
-        inTransit,
-        delivered,
-        available: driver.isAvailable
-      },
+        completedDeliveries,
+        pendingDeliveries,
+        cancelledDeliveries,
+        isAvailable: driver.isAvailable,
+        totalEarnings: earnings._sum.driverEarning || 0,  // 👈
+      }
     });
-
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return res.status(500).json({ success: false, message: error.message });
   }
 }
 

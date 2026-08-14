@@ -6,14 +6,25 @@ import {
   updateDeliveryStatus,
 } from "../../api/deliveryApi.js";
 import DeliveryMap from "../../components/driver/DeliveryMap.jsx";
+import {
+  Package,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Truck,
+  MapPin,
+  Loader2,
+  AlertCircle,
+  ArrowRight,
+} from "lucide-react";
 
-const statusColor = {
-  PENDING: "bg-yellow-100 text-yellow-700",
-  ASSIGNED: "bg-blue-100 text-blue-700",
-  PICKED_UP: "bg-purple-100 text-purple-700",
-  IN_TRANSIT: "bg-purple-100 text-purple-700",
-  DELIVERED: "bg-green-100 text-green-700",
-  REJECTED: "bg-red-100 text-red-600",
+const statusConfig = {
+  PENDING: { color: "bg-yellow-100 text-yellow-700", icon: Clock },
+  ASSIGNED: { color: "bg-blue-100 text-blue-700", icon: Package },
+  PICKED_UP: { color: "bg-purple-100 text-purple-700", icon: Truck },
+  IN_TRANSIT: { color: "bg-purple-100 text-purple-700", icon: Truck },
+  DELIVERED: { color: "bg-green-100 text-green-700", icon: CheckCircle2 },
+  REJECTED: { color: "bg-red-100 text-red-600", icon: XCircle },
 };
 
 // PENDING -> accept/reject
@@ -91,87 +102,145 @@ const AssignedDeliveries = () => {
     }
   };
 
-  if (loading) return <div className="p-6 text-gray-500">Loading deliveries...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 p-10 text-gray-500">
+        <Loader2 size={18} className="animate-spin text-green-600" />
+        Loading deliveries...
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold mb-6">My Deliveries</h2>
-
-      {error && <p className="bg-red-100 text-red-600 text-sm p-2 rounded mb-4">{error}</p>}
-
-      {deliveries.length === 0 ? (
-        <p className="text-gray-500">No active or pending deliveries right now.</p>
-      ) : (
-        <div className="space-y-4">
-          {deliveries.map((delivery) => (
-            <div key={delivery.id} className="bg-white rounded-lg shadow p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold">{delivery.order?.crop?.title}</h3>
-                  <p className="text-sm text-gray-500">
-                    Order #{delivery.order?.id} — {delivery.order?.quantity} units — ₹{delivery.order?.totalAmount}
-                  </p>
-                </div>
-                <span className={`px-2 py-1 rounded text-xs ${statusColor[delivery.status] || "bg-gray-100 text-gray-600"}`}>
-                  {delivery.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 text-sm">
-                <div className="border rounded p-2">
-                  <p className="font-medium text-gray-700 mb-1">Pickup — Farmer</p>
-                  <p>{delivery.order?.farmer?.user?.name}</p>
-                  <p className="text-gray-500">
-                    {delivery.order?.farmer?.village}, {delivery.order?.farmer?.district}
-                  </p>
-                </div>
-                <div className="border rounded p-2">
-                  <p className="font-medium text-gray-700 mb-1">Drop — Buyer</p>
-                  <p>{delivery.order?.buyer?.user?.name}</p>
-                  <p className="text-gray-500">
-                    {delivery.order?.buyer?.village}, {delivery.order?.buyer?.district}
-                  </p>
-                </div>
-              </div>
-
-               {["ASSIGNED", "PICKED_UP", "IN_TRANSIT"].includes(delivery.status) && (
-      <DeliveryMap delivery={delivery} />
-    )}
-
-              <div className="flex gap-3 mt-3">
-                {delivery.status === "PENDING" && (
-                  <>
-                    <button
-                      onClick={() => handleAccept(delivery.id)}
-                      disabled={actionId === delivery.id}
-                      className="bg-green-600 text-white text-sm px-4 py-1.5 rounded hover:bg-green-700 disabled:opacity-50"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleReject(delivery.id)}
-                      disabled={actionId === delivery.id}
-                      className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-
-                {nextStatusMap[delivery.status] && (
-                  <button
-                    onClick={() => handleStatusUpdate(delivery.id, delivery.status)}
-                    disabled={actionId === delivery.id}
-                    className="bg-blue-600 text-white text-sm px-4 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {actionId === delivery.id ? "Updating..." : nextStatusLabel[nextStatusMap[delivery.status]]}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">My Deliveries</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Manage your assigned pickups and drops</p>
         </div>
-      )}
+
+        {error && (
+          <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-3 py-2 rounded-lg mb-5 border border-red-100">
+            <AlertCircle size={15} />
+            {error}
+          </div>
+        )}
+
+        {deliveries.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-green-100 p-10 text-center">
+            <Package className="mx-auto text-green-300 mb-3" size={36} />
+            <p className="text-gray-500">No active or pending deliveries right now.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {deliveries.map((delivery) => {
+              const config = statusConfig[delivery.status] || {
+                color: "bg-gray-100 text-gray-600",
+                icon: Package,
+              };
+              const StatusIcon = config.icon;
+
+              return (
+                <div
+                  key={delivery.id}
+                  className="bg-white rounded-2xl shadow-sm border border-green-100 p-5 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      
+                      <h3 className="font-semibold text-gray-800">{delivery.order?.crop?.title}</h3>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        Order #{delivery.order?.id} — {delivery.order?.quantity} units — ₹{delivery.order?.totalAmount}
+                      </p>
+                      {delivery.deliveryFee && (
+  <div className="mt-2 text-xs text-gray-500 border-t pt-2">
+    Delivery Fee: ₹{delivery.deliveryFee} — Your Earning: <span className="text-green-600 font-medium">₹{delivery.driverEarning}</span>
+  </div>
+)}
+                    </div>
+                    <span
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${config.color}`}
+                    >
+                      <StatusIcon size={12} />
+                      {delivery.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-sm">
+                    <div className="border border-green-100 rounded-xl p-3 bg-green-50/40">
+                      <p className="flex items-center gap-1.5 font-semibold text-gray-700 mb-1">
+                        <MapPin size={13} className="text-green-600" />
+                        Pickup — Farmer
+                      </p>
+                      <p className="text-gray-800">{delivery.order?.farmer?.user?.name}</p>
+                      <p className="text-gray-500">
+                        {delivery.order?.farmer?.village}, {delivery.order?.farmer?.district}
+                      </p>
+                    </div>
+                    <div className="border border-green-100 rounded-xl p-3 bg-green-50/40">
+                      <p className="flex items-center gap-1.5 font-semibold text-gray-700 mb-1">
+                        <MapPin size={13} className="text-green-600" />
+                        Drop — Buyer
+                      </p>
+                      <p className="text-gray-800">{delivery.order?.buyer?.user?.name}</p>
+                      <p className="text-gray-500">
+                        {delivery.order?.buyer?.village}, {delivery.order?.buyer?.district}
+                      </p>
+                    </div>
+                  </div>
+
+                  {["ASSIGNED", "PICKED_UP", "IN_TRANSIT"].includes(delivery.status) && (
+                    <DeliveryMap delivery={delivery} />
+                  )}
+
+                  <div className="flex gap-3 mt-4">
+                    {delivery.status === "PENDING" && (
+                      <>
+                        <button
+                          onClick={() => handleAccept(delivery.id)}
+                          disabled={actionId === delivery.id}
+                          className="flex items-center gap-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white text-sm font-semibold px-4 py-2 rounded-full shadow-sm shadow-green-200 hover:shadow-md transition-all disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={14} />
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleReject(delivery.id)}
+                          disabled={actionId === delivery.id}
+                          className="flex items-center gap-1.5 bg-red-50 text-red-600 border border-red-200 text-sm font-semibold px-4 py-2 rounded-full hover:bg-red-100 transition-all disabled:opacity-50"
+                        >
+                          <XCircle size={14} />
+                          Reject
+                        </button>
+                      </>
+                    )}
+
+                    {nextStatusMap[delivery.status] && (
+                      <button
+                        onClick={() => handleStatusUpdate(delivery.id, delivery.status)}
+                        disabled={actionId === delivery.id}
+                        className="flex items-center gap-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white text-sm font-semibold px-4 py-2 rounded-full shadow-sm shadow-green-200 hover:shadow-md transition-all disabled:opacity-50"
+                      >
+                        {actionId === delivery.id ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          <>
+                            {nextStatusLabel[nextStatusMap[delivery.status]]}
+                            <ArrowRight size={14} />
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

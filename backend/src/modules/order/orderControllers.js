@@ -243,24 +243,15 @@ export const cancelOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
 
-    const orderIdInt = parseInt(orderId);
-
-    if (isNaN(orderIdInt)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid order ID",
-      });
-    }
-
     const order = await prisma.order.findUnique({
       where: {
-        id: orderIdInt,
+        id: parseInt(orderId),
       },
-
       include: {
         buyer: true,
         farmer: true,
         delivery: true,
+        bid: true,   // 👈 bid bhi include karo
       },
     });
 
@@ -271,31 +262,17 @@ export const cancelOrder = async (req, res) => {
       });
     }
 
-    // Check authorization
+    // Authorization check (same as before)
     let isAuthorized = false;
 
     if (req.user.role === "BUYER") {
-      const buyer = await prisma.buyer.findUnique({
-        where: {
-          userId: req.user.id,
-        },
-      });
-
-      if (buyer && buyer.id === order.buyerId) {
-        isAuthorized = true;
-      }
+      const buyer = await prisma.buyer.findUnique({ where: { userId: req.user.id } });
+      if (buyer && buyer.id === order.buyerId) isAuthorized = true;
     }
 
     if (req.user.role === "FARMER") {
-      const farmer = await prisma.farmer.findUnique({
-        where: {
-          userId: req.user.id,
-        },
-      });
-
-      if (farmer && farmer.id === order.farmerId) {
-        isAuthorized = true;
-      }
+      const farmer = await prisma.farmer.findUnique({ where: { userId: req.user.id } });
+      if (farmer && farmer.id === order.farmerId) isAuthorized = true;
     }
 
     if (!isAuthorized) {
@@ -305,13 +282,7 @@ export const cancelOrder = async (req, res) => {
       });
     }
 
-    // Orders that cannot be cancelled
-    const nonCancellableStatuses = [
-      "PICKED_UP",
-      "IN_TRANSIT",
-      "DELIVERED",
-      "CANCELLED",
-    ];
+    const nonCancellableStatuses = ["PICKED_UP", "IN_TRANSIT", "DELIVERED", "CANCELLED"];
 
     if (nonCancellableStatuses.includes(order.status)) {
       return res.status(400).json({
@@ -320,40 +291,33 @@ export const cancelOrder = async (req, res) => {
       });
     }
 
-    // Update delivery and free driver
+    // Delivery cancel + driver free karo (same as before)
     if (order.delivery) {
       await prisma.delivery.update({
-        where: {
-          id: order.delivery.id,
-        },
-
-        data: {
-          status: "CANCELLED",
-        },
+        where: { id: order.delivery.id },
+        data: { status: "CANCELLED" },
       });
 
       if (order.delivery.driverId) {
         await prisma.driver.update({
-          where: {
-            id: order.delivery.driverId,
-          },
-
-          data: {
-            isAvailable: true,
-          },
+          where: { id: order.delivery.driverId },
+          data: { isAvailable: true },
         });
       }
     }
 
-    // Cancel order
-    const updatedOrder = await prisma.order.update({
-      where: {
-        id: order.id,
-      },
+    // ✅ Bid ko bhi CANCELLED karo taake buyer dobara bid laga sake
+    if (order.bid) {
+      await prisma.bid.update({
+        where: { id: order.bid.id },
+        data: { status: "CANCELLED" },
+      });
+    }
 
-      data: {
-        status: "CANCELLED",
-      },
+    // Order cancel karo
+    const updatedOrder = await prisma.order.update({
+      where: { id: order.id },
+      data: { status: "CANCELLED" },
     });
 
     return res.status(200).json({
@@ -362,8 +326,6 @@ export const cancelOrder = async (req, res) => {
       order: updatedOrder,
     });
   } catch (error) {
-    console.error("Cancel Order Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
